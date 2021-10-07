@@ -1,0 +1,94 @@
+image: docker:19.03.12
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  TF_ROOT: ${CI_PROJECT_DIR}/terraform
+  BACKEND_ADDR: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/
+
+services:
+  - docker:19.03.12-dind
+
+stages:
+  - terraform-setup
+  - terraform-apply
+  - build
+  - k8s-setup
+  - k8s-apply
+  - deploy
+
+terraform:setup:
+  stage: terraform-setup
+  image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
+  before_script:
+    - cd ${TF_ROOT}/main
+    - terraform init
+  script:
+    - terraform validate
+    - terraform plan -input=false -out="${TF_ROOT}/main/plan.cache"
+  cache:
+    key: TF-main
+    paths:
+      - ${TF_ROOT}/main/.terraform
+  artifacts:
+    name: plan
+    paths: 
+    - ${TF_ROOT}/main/plan.cache
+
+terraform:apply:
+  stage: terraform-apply
+  image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
+  cache:
+    key: TF-main
+    paths:
+      - ${TF_ROOT}/main/.terraform
+  when: manual
+  before_script:
+    - cd ${TF_ROOT}/main
+    - terraform init
+  script:
+    - terraform apply -input=false "${TF_ROOT}/main/plan.cache"
+  allow_failure: false
+
+docker:build:
+  stage: build
+  image: docker:latest
+  script: 
+    - docker build -t emistest-ecr .
+    - docker run --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --rm amazon/aws-cli ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 647526876872.dkr.ecr.us-east-1.amazonaws.com
+    - docker tag emistest-ecr 647526876872.dkr.ecr.us-east-1.amazonaws.com/emistest-ecr:latest
+    - docker push 647526876872.dkr.ecr.us-east-1.amazonaws.com/emistest-ecr:latest
+  before_script:
+    - docker info
+  tags:
+    - docker
+  
+k8s:coredns:
+  stage: k8s-setup
+  image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
+  needs: ["docker:build", "terraform:apply"]
+  before_script:
+    - cd ${TF_ROOT}/k8s
+    - terraform init
+  script:
+    - terraform validate
+    - terraform plan -input=false -out="${TF_ROOT}/k8s/plan.cache"
+  cache:
+    key: TF-k8s
+    paths:
+      - ${TF_ROOT}/k8s/.terraform
+  artifacts:
+    name: plan
+    paths: 
+    - ${TF_ROOT}/k8s/plan.cache
+  allow_failure: false
+    
+k8s:apply:
+  stage: k8s-apply
+  image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
+  needs: ["k8s:coredns"]
+  before_script:
+    - cd ${TF_ROOT}/k8s
+    - terraform init
+  script: 
+    - terraform apply -input=false "${TF_ROOT}/k8s/plan.cache"
+

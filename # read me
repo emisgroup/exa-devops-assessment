@@ -1,0 +1,13 @@
+Submitted from an aliased account.
+
+The project was built on Gitlab, and utilised its features, as such the work took place there.
+You can visit the repo here: https://gitlab.com/KanchiMoe/emis-devops-demo
+You can also view the commit history on Github here: https://github.com/KanchiMoe/emis-devops
+The project also had a MVP in mind, so doesn't include any of the fine-tuning that would indicative of a final product.
+
+I did get stuck, and at the time of submission, the project is not yet complete.
+I got stuck on bootstrapping the kubernetes cluster, and connecting the ALB to the kubernetes service because nodes tainted automatically when using Fargate.
+I don't think that the objective of the assessment was bootstrapping kubernetes from scratch.
+
+I tried adding helm, kubectl and oidc as while researching how to set up the controller, guides and documentation suggested those were key components to include.
+If I had been successful with getting the cluster up and running, I would have worked on code readability, security, and automatic linting.
