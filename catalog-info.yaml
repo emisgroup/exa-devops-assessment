@@ -1,0 +1,10 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: exa-devops-assessment
+  annotations:
+    github.com/project-slug: emisgroup/exa-devops-assessment
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/nightingale-admin
